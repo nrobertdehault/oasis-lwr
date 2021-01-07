@@ -11,7 +11,15 @@ module.exports = {
         basePath: '',
         contentSecurityPolicy: {
             directives: {
-                scriptSrc: ['cdn.pendo.io', 'data.pendo.io', 'app.pendo.io']
+                scriptSrc: [
+                    'cdn.pendo.io', 
+                    'data.pendo.io', 
+                    'app.pendo.io', 
+                    'www.googletagmanager.com', 
+                    `'sha256-DYeo5qJWmrIYG0P85Q0alzt+Hp31aNAQdGfIGkVC1PE='`,
+                    `'sha256-SkFuD2DKggQNLr3DLwAyKkIG8j3lKQA5LHOOd/l/XUQ='`,
+                    `'sha256-a7tRDcNFroc5GyK3fKcaTHtiwQJ6G0SRaidkh6Pzlp8='`
+                ]
             },
             loose: true,
         }
