@@ -1,7 +1,5 @@
-(function (factory) {
-    typeof define === 'function' && define.amd ? define(factory) :
-    factory();
-}((function () { 'use strict';
+(function () {
+    'use strict';
 
     /*
      * Copyright (c) 2020, salesforce.com, inc.
@@ -7027,10 +7025,15 @@
         [addEventListenerOriginal, addEventListenerDistortion]
     ]);
 
-    // @ts-ignore we have some issues with `declare module '@caridy/sjs/lib/browser-realm';`
+    /*
+     * Copyright (c) 2018, salesforce.com, inc.
+     * All rights reserved.
+     * SPDX-License-Identifier: BSD-3-Clause
+     * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
+     */
     // local caches
     const { createElement } = document;
-    const { prepend: originalPrepend, append: originalAppend, appendChild: originalAppendChild, insertBefore: originalInsertBefore, } = Element.prototype;
+    const { prepend: originalPrepend, append: originalAppend, appendChild: originalAppendChild, insertBefore: originalInsertBefore, setAttribute: originalSetAttribute } = Element.prototype;
     const documentBodyGetter = Reflect.getOwnPropertyDescriptor(Document.prototype, 'body').get;
     function defineExportedGlobal(name, descriptor) {
         Reflect.defineProperty(window, name, descriptor);
@@ -7178,35 +7181,46 @@
     }
     function createScriptReflection(elm) {
         const { attributes, textContent: sourceText } = elm;
-        if (sourceText) {
-            evaluate(sourceText);
-            return;
-        }
         const script = createElement.call(magicDocument, 'script');
+        // carry over all oasis' attributes
         for (let i = 0, len = attributes.length; i < len; i += 1) {
             const attr = attributes.item(i);
             if (!isNull$1(attr) && attr.name.indexOf('on') !== 0) {
-                setAttribute.call(script, attr.name, attr.value);
+                originalSetAttribute.call(script, attr.name, attr.value);
             }
         }
+        // listen for any error events on the script element
+        addEventListenerOriginal.call(script, 'error', (e) => {
+            dispatchEventOriginal.call(elm, new ErrorEvent('error', e));
+        });
+        // listen for any load events on the script element
+        addEventListenerOriginal.call(script, 'load', () => dispatchEventOriginal
+            .call(elm, new Event('load')));
+        // for posterity, set any inline scripts in the script tag
+        // knowing that they may not run if a src attribute was set
         if (sourceText) {
             script.textContent = sourceText;
         }
-        addEventListenerOriginal.call(script, 'error', (e) => dispatchEventOriginal
-            .call(elm, new ErrorEvent('error', e)));
-        addEventListenerOriginal.call(script, 'load', () => dispatchEventOriginal
-            .call(elm, new Event('load')));
-        appendChild.call(magicBody, script);
+        // append the script element to the magic body
+        originalAppendChild.call(magicBody, script);
+    }
+    function normalizeGlobalNames(names) {
+        if (!isNull$1(names) && !isUndefined$1(names)) {
+            return names.split(",").map(name => name.trim()).filter(name => GLOBAL_NAMES_REGEX.test(name));
+        }
+        return [];
     }
     function execute(elm) {
         // TODO: improve this to not use an expando, use a weakmap instead
         if (elm.evaluate)
             return; // skipping
         elm.evaluate = true;
-        mapExportedGlobals(elm.exportedGlobalNames);
-        mapImportedGlobals(elm.importedGlobalNames);
+        mapExportedGlobals(normalizeGlobalNames(elm.exportedGlobalNames));
+        mapImportedGlobals(normalizeGlobalNames(elm.importedGlobalNames));
         createScriptReflection(elm);
     }
+    // disallow spaces but allow anything else, including "_", "-" and "$"
+    const GLOBAL_NAMES_REGEX = /^\S+$/;
     class OasisScript extends HTMLElement {
         constructor() {
             super();
@@ -7217,37 +7231,54 @@
             this.attachShadow({ mode: 'open' }).appendChild(slot);
         }
         get exportedGlobalNames() {
-            const names = this.getAttribute('exported-global-names');
-            return names ? names.split(',').map(name => name.trim()).filter(name => /\w+/.test(name)) : [];
+            return this.getAttribute('exported-global-names');
         }
         set exportedGlobalNames(v) {
-            this.setAttribute('exported-global-names', v.join(','));
+            if (isNull$1(v) || isUndefined$1(v) || v === '') {
+                this.removeAttribute('exported-global-names');
+            }
+            else {
+                this.setAttribute('exported-global-names', v);
+            }
         }
         get importedGlobalNames() {
-            const names = this.getAttribute('imported-global-names');
-            return names ? names.split(',').map(name => name.trim()).filter(name => /\w+/.test(name)) : [];
+            return this.getAttribute('imported-global-names');
         }
         set importedGlobalNames(v) {
-            this.setAttribute('imported-global-names', v.join(','));
+            if (isNull$1(v) || isUndefined$1(v) || v === '') {
+                this.removeAttribute('imported-global-names');
+            }
+            else {
+                this.setAttribute('imported-global-names', v);
+            }
         }
         get src() {
             var _a;
             return (_a = this.getAttribute('src')) !== null && _a !== void 0 ? _a : '';
         }
         set src(v) {
-            this.setAttribute('src', v !== null && v !== void 0 ? v : '');
+            if (isNull$1(v) || isUndefined$1(v) || v === '') {
+                this.removeAttribute('src');
+            }
+            else {
+                this.setAttribute('src', v);
+            }
         }
         connectedCallback() {
             // always hide oasis element
             this.setAttribute('hidden', 'true');
-            // ensure that the src is only ever executed the first time
+            // Ensure that we only execute if there is a src
+            // or if textContent has been set programmatically.
             const { src } = this;
-            if (src !== null) {
+            if (src && src.length) {
+                execute(this);
+            }
+            else if (this.textContent) {
                 execute(this);
             }
         }
     }
     customElements.define('x-oasis-script', OasisScript);
 
-})));
+}());
 //# sourceMappingURL=oasis.js.map

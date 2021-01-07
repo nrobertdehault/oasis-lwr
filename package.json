@@ -9,8 +9,7 @@
   "scripts": {
     "clean": "rm -rf dist",
     "build:public": "cpx \"src/public/**/*\" dist --verbose",
-    "build:oasis": "node scripts/copy-oasis.js",
-    "build": "yarn clean && yarn build:oasis && yarn build:public",
+    "build": "yarn clean && yarn build:public",
     "start": "MODE=\"${MODE:-prod}\" webruntime run . --port=$PORT",
     "start:local": "MODE=\"${MODE:-dev}\" webruntime run .",
     "test:unit": "jest",
@@ -30,7 +29,6 @@
     "@communities-webruntime/services": "0.43.4",
     "@lwc/jest-preset": "7.0.0",
     "@lwc/synthetic-shadow": "1.9.2",
-    "@salesforce/oasis": "^0.3.1",
     "colors": "^1.4.0",
     "cpx": "^1.5.0",
     "jest": "25.4.0"
